@@ -43,8 +43,6 @@ canvas {
     cursor: pointer;
     width: 100%;
     height: 100%;
-    touch-action: none;
-    -webkit-touch-callout: none;
 }
     </style>
 </head>
@@ -65,7 +63,6 @@ if ('serviceWorker' in navigator) {
       .catch((err) => console.error('Service Worker Error', err));
   });
 }
-
 
     /*
 
@@ -97,45 +94,31 @@ window.SDK_OPTIONS = {
 
 function resizeGame() {
     const gameContainer = document.getElementById("gameContainer");
-    if (!gameContainer) return;
+    if (!gameContainer) return; // Prevent null reference errors if script loads early
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for performance
     const targetAspectRatio = 400 / 600;
     
+    // Scale container relative to viewport, leaving room for instructions below
     let availableWidth = window.innerWidth * 0.95; 
     let availableHeight = window.innerHeight * 0.80; 
     
-    if (availableWidth / availableHeight > targetAspectRatio) {
-        availableWidth = availableHeight * targetAspectRatio;
-    } else {
-        availableHeight = availableWidth / targetAspectRatio;
+    let containerWidth = availableWidth;
+    let containerHeight = availableWidth / targetAspectRatio;
+    
+    if (containerHeight > availableHeight) {
+        containerHeight = availableHeight;
+        containerWidth = containerHeight * targetAspectRatio;
     }
     
-    // Internal canvas buffer resolution
-    canvas.width = availableWidth * dpr;
-    canvas.height = availableHeight * dpr;
-
-    // Display layout dimensions
-    gameContainer.style.width = `${availableWidth}px`;
-    gameContainer.style.height = `${availableHeight}px`;
-
-    // Scale drawing context to match DPR
-    ctx.scale(dpr, dpr);
+    // Resize the outer box instead of canvas inline styles
+    gameContainer.style.width = `${containerWidth}px`;
+    gameContainer.style.height = `${containerHeight}px`;
 }
 
 // Event Listeners
-//window.addEventListener('resize', resizeGame);
-//window.addEventListener('orientationchange', resizeGame);
+window.addEventListener('resize', resizeGame);
+window.addEventListener('orientationchange', resizeGame);
 // Use DOMContentLoaded instead of instant execution to guarantee element availability
-//document.addEventListener('DOMContentLoaded', resizeGame);
-
-let resizeTimeout;
-function debouncedResize() {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(resizeGame, 100);
-}
-window.addEventListener('resize', debouncedResize);
-window.addEventListener('orientationchange', () => setTimeout(resizeGame, 200));
 document.addEventListener('DOMContentLoaded', resizeGame);
 
 // 1. Loading Phase
@@ -291,12 +274,8 @@ document.addEventListener('keydown', (e) => {
 console.log(`%c ${GAME_METADATA.title} | ${GAME_METADATA.copyright}`, "color: #00f0d0; font-weight: bold; font-size: 14px;");
 
 
-const canvas = document.getElementById("myCanvas");
-
-// Disable alpha channel here
-const ctx = canvas.getContext("2d", { alpha: false });
-//const canvas = document.getElementById("gameCanvas");
-//const ctx = canvas.getContext("2d");
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 // Load Splash Logo Image
 const logoImg = new Image();
 logoImg.src = "Final_Logo3.jpg";
@@ -1759,7 +1738,6 @@ function togglePause() {
     updateEngineSound(isTapping);
 }
 
-/*
 canvas.addEventListener("mousedown", (e) => handlePointerDown(e.clientX, e.clientY));
 canvas.addEventListener("mouseup", () => handlePointerUp());
 canvas.addEventListener("touchstart", (e) => { 
@@ -1767,31 +1745,6 @@ canvas.addEventListener("touchstart", (e) => {
     handlePointerDown(e.touches[0].clientX, e.touches[0].clientY); 
 }, { passive: false });
 canvas.addEventListener("touchend", (e) => { e.preventDefault(); handlePointerUp(); }, { passive: false });
-
-* After/
-
-let isTouchActive = false;
-
-canvas.addEventListener("mousedown", (e) => {
-    if (isTouchActive) return; // Prevent double firing on iOS
-    handlePointerDown(e.clientX, e.clientY);
-});
-canvas.addEventListener("mouseup", () => {
-    if (isTouchActive) return;
-    handlePointerUp();
-});
-canvas.addEventListener("touchstart", (e) => { 
-    e.preventDefault(); 
-    isTouchActive = true;
-    if (e.touches.length > 0) {
-        handlePointerDown(e.touches[0].clientX, e.touches[0].clientY); 
-    }
-}, { passive: false });
-canvas.addEventListener("touchend", (e) => { 
-    e.preventDefault(); 
-    handlePointerUp();
-    setTimeout(() => { isTouchActive = false; }, 300);
-}, { passive: false });
 
 window.addEventListener("keydown", (e) => {
     if (e.key === "p" || e.key === "P" || e.key === " ") {
@@ -2430,10 +2383,10 @@ function startCelebrationSequence() {
     sdk.showBanner();
     }
     }, 2100);
-    
+    */
    
 }
-*/
+
 function saveBestScore() {
     if (Math.floor(distanceTraveled) > bestDistance) {
         bestDistance = Math.floor(distanceTraveled);
@@ -2586,22 +2539,45 @@ function drawCyberGrid(ctx, y, height) {
 }
 
 // Pattern 5: Synthwave Hexagon Mesh
-// AFTER (Fixed & Closed)
 function drawHexagonsHighPerf(ctx, y, height) {
     const hexWidth = 24;
     const num = Math.ceil(canvas.width / hexWidth) + 3;
-    const offsetX = (frameCount * baseSpeed * 0.4) % hexWidth;
     
+    // Smooth, slow scrolling multiplier (0.4x)
+    const offsetX = (frameCount * baseSpeed * 0.4) % hexWidth;
+
+    // 1. Solid background track edge
     ctx.fillStyle = currentRoadTheme.light;
     ctx.fillRect(0, y, canvas.width, height);
-    
-    ctx.strokeStyle = currentRoadTheme.dark;
+
     ctx.lineWidth = 1.5;
-    
+
+    // Helper to draw a single hexagon path
+    const drawHex = (x) => {
+        ctx.moveTo(x + hexWidth * 0.25, y);
+        ctx.lineTo(x + hexWidth * 0.75, y);
+        ctx.lineTo(x + hexWidth, y + height / 2);
+        ctx.lineTo(x + hexWidth * 0.75, y + height);
+        ctx.lineTo(x + hexWidth * 0.25, y + height);
+        ctx.lineTo(x, y + height / 2);
+        ctx.closePath();
+    };
+
+    // 2. Batch dark hexagon outlines
+    ctx.strokeStyle = currentRoadTheme.dark;
     ctx.beginPath();
-    for (let i = -2; i < num; i++) {
+    for (let i = -2; i < num; i += 2) {
         const x = (i * hexWidth) - offsetX;
-        ctx.rect(x, y, hexWidth, height);
+        drawHex(x);
+    }
+    ctx.stroke();
+
+    // 3. Batch accent colored hexagon outlines
+    ctx.strokeStyle = currentRoadTheme.accent;
+    ctx.beginPath();
+    for (let i = -1; i < num; i += 2) {
+        const x = (i * hexWidth) - offsetX;
+        drawHex(x);
     }
     ctx.stroke();
 }
