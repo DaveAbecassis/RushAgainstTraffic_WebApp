@@ -66,6 +66,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+
     /*
 
 window.SDK_OPTIONS = {
@@ -96,25 +97,30 @@ window.SDK_OPTIONS = {
 
 function resizeGame() {
     const gameContainer = document.getElementById("gameContainer");
-    if (!gameContainer) return; // Prevent null reference errors if script loads early
+    if (!gameContainer) return;
 
+    const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for performance
     const targetAspectRatio = 400 / 600;
     
-    // Scale container relative to viewport, leaving room for instructions below
     let availableWidth = window.innerWidth * 0.95; 
     let availableHeight = window.innerHeight * 0.80; 
     
-    let containerWidth = availableWidth;
-    let containerHeight = availableWidth / targetAspectRatio;
-    
-    if (containerHeight > availableHeight) {
-        containerHeight = availableHeight;
-        containerWidth = containerHeight * targetAspectRatio;
+    if (availableWidth / availableHeight > targetAspectRatio) {
+        availableWidth = availableHeight * targetAspectRatio;
+    } else {
+        availableHeight = availableWidth / targetAspectRatio;
     }
     
-    // Resize the outer box instead of canvas inline styles
-    gameContainer.style.width = `${containerWidth}px`;
-    gameContainer.style.height = `${containerHeight}px`;
+    // Internal canvas buffer resolution
+    canvas.width = availableWidth * dpr;
+    canvas.height = availableHeight * dpr;
+
+    // Display layout dimensions
+    gameContainer.style.width = `${availableWidth}px`;
+    gameContainer.style.height = `${availableHeight}px`;
+
+    // Scale drawing context to match DPR
+    ctx.scale(dpr, dpr);
 }
 
 // Event Listeners
@@ -285,8 +291,12 @@ document.addEventListener('keydown', (e) => {
 console.log(`%c ${GAME_METADATA.title} | ${GAME_METADATA.copyright}`, "color: #00f0d0; font-weight: bold; font-size: 14px;");
 
 
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+const canvas = document.getElementById("myCanvas");
+
+// Disable alpha channel here
+const ctx = canvas.getContext("2d", { alpha: false });
+//const canvas = document.getElementById("gameCanvas");
+//const ctx = canvas.getContext("2d");
 // Load Splash Logo Image
 const logoImg = new Image();
 logoImg.src = "Final_Logo3.jpg";
@@ -2581,23 +2591,17 @@ function drawHexagonsHighPerf(ctx, y, height) {
     const hexWidth = 24;
     const num = Math.ceil(canvas.width / hexWidth) + 3;
     const offsetX = (frameCount * baseSpeed * 0.4) % hexWidth;
-
+    
     ctx.fillStyle = currentRoadTheme.light;
     ctx.fillRect(0, y, canvas.width, height);
-
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = currentRoadTheme.dark;
-    ctx.beginPath();
     
-    for (let i = -2; i < num; i += 2) {
+    ctx.strokeStyle = currentRoadTheme.dark;
+    ctx.lineWidth = 1.5;
+    
+    ctx.beginPath();
+    for (let i = -2; i < num; i++) {
         const x = (i * hexWidth) - offsetX;
-        ctx.moveTo(x + hexWidth * 0.25, y);
-        ctx.lineTo(x + hexWidth * 0.75, y);
-        ctx.lineTo(x + hexWidth, y + height / 2);
-        ctx.lineTo(x + hexWidth * 0.75, y + height);
-        ctx.lineTo(x + hexWidth * 0.25, y + height);
-        ctx.lineTo(x, y + height / 2);
-        ctx.closePath();
+        ctx.rect(x, y, hexWidth, height);
     }
     ctx.stroke();
 }
