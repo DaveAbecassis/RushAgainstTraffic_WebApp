@@ -43,6 +43,8 @@ canvas {
     cursor: pointer;
     width: 100%;
     height: 100%;
+    touch-action: none;
+    -webkit-touch-callout: none;
 }
     </style>
 </head>
@@ -116,9 +118,18 @@ function resizeGame() {
 }
 
 // Event Listeners
-window.addEventListener('resize', resizeGame);
-window.addEventListener('orientationchange', resizeGame);
+//window.addEventListener('resize', resizeGame);
+//window.addEventListener('orientationchange', resizeGame);
 // Use DOMContentLoaded instead of instant execution to guarantee element availability
+//document.addEventListener('DOMContentLoaded', resizeGame);
+
+let resizeTimeout;
+function debouncedResize() {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(resizeGame, 100);
+}
+window.addEventListener('resize', debouncedResize);
+window.addEventListener('orientationchange', () => setTimeout(resizeGame, 200));
 document.addEventListener('DOMContentLoaded', resizeGame);
 
 // 1. Loading Phase
@@ -1738,6 +1749,7 @@ function togglePause() {
     updateEngineSound(isTapping);
 }
 
+/*
 canvas.addEventListener("mousedown", (e) => handlePointerDown(e.clientX, e.clientY));
 canvas.addEventListener("mouseup", () => handlePointerUp());
 canvas.addEventListener("touchstart", (e) => { 
@@ -1745,6 +1757,31 @@ canvas.addEventListener("touchstart", (e) => {
     handlePointerDown(e.touches[0].clientX, e.touches[0].clientY); 
 }, { passive: false });
 canvas.addEventListener("touchend", (e) => { e.preventDefault(); handlePointerUp(); }, { passive: false });
+
+* After/
+
+let isTouchActive = false;
+
+canvas.addEventListener("mousedown", (e) => {
+    if (isTouchActive) return; // Prevent double firing on iOS
+    handlePointerDown(e.clientX, e.clientY);
+});
+canvas.addEventListener("mouseup", () => {
+    if (isTouchActive) return;
+    handlePointerUp();
+});
+canvas.addEventListener("touchstart", (e) => { 
+    e.preventDefault(); 
+    isTouchActive = true;
+    if (e.touches.length > 0) {
+        handlePointerDown(e.touches[0].clientX, e.touches[0].clientY); 
+    }
+}, { passive: false });
+canvas.addEventListener("touchend", (e) => { 
+    e.preventDefault(); 
+    handlePointerUp();
+    setTimeout(() => { isTouchActive = false; }, 300);
+}, { passive: false });
 
 window.addEventListener("keydown", (e) => {
     if (e.key === "p" || e.key === "P" || e.key === " ") {
@@ -2383,10 +2420,10 @@ function startCelebrationSequence() {
     sdk.showBanner();
     }
     }, 2100);
-    */
+    
    
 }
-
+*/
 function saveBestScore() {
     if (Math.floor(distanceTraveled) > bestDistance) {
         bestDistance = Math.floor(distanceTraveled);
@@ -2539,21 +2576,21 @@ function drawCyberGrid(ctx, y, height) {
 }
 
 // Pattern 5: Synthwave Hexagon Mesh
+// AFTER (Fixed & Closed)
 function drawHexagonsHighPerf(ctx, y, height) {
     const hexWidth = 24;
     const num = Math.ceil(canvas.width / hexWidth) + 3;
-    
-    // Smooth, slow scrolling multiplier (0.4x)
     const offsetX = (frameCount * baseSpeed * 0.4) % hexWidth;
 
-    // 1. Solid background track edge
     ctx.fillStyle = currentRoadTheme.light;
     ctx.fillRect(0, y, canvas.width, height);
 
     ctx.lineWidth = 1.5;
-
-    // Helper to draw a single hexagon path
-    const drawHex = (x) => {
+    ctx.strokeStyle = currentRoadTheme.dark;
+    ctx.beginPath();
+    
+    for (let i = -2; i < num; i += 2) {
+        const x = (i * hexWidth) - offsetX;
         ctx.moveTo(x + hexWidth * 0.25, y);
         ctx.lineTo(x + hexWidth * 0.75, y);
         ctx.lineTo(x + hexWidth, y + height / 2);
@@ -2561,28 +2598,12 @@ function drawHexagonsHighPerf(ctx, y, height) {
         ctx.lineTo(x + hexWidth * 0.25, y + height);
         ctx.lineTo(x, y + height / 2);
         ctx.closePath();
-    };
-
-    // 2. Batch dark hexagon outlines
-    ctx.strokeStyle = currentRoadTheme.dark;
-    ctx.beginPath();
-    for (let i = -2; i < num; i += 2) {
-        const x = (i * hexWidth) - offsetX;
-        drawHex(x);
-    }
-    ctx.stroke();
-
-    // 3. Batch accent colored hexagon outlines
-    ctx.strokeStyle = currentRoadTheme.accent;
-    ctx.beginPath();
-    for (let i = -1; i < num; i += 2) {
-        const x = (i * hexWidth) - offsetX;
-        drawHex(x);
     }
     ctx.stroke();
 }
 
 // Lightweight path builder helper (prevents context overhead)
+
 function appendHexPath(ctx, x, y, hexWidth, height) {
     ctx.moveTo(x + hexWidth * 0.25, y);
     ctx.lineTo(x + hexWidth * 0.75, y);
